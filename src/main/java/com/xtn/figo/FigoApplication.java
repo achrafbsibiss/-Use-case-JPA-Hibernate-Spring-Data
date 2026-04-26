@@ -1,10 +1,7 @@
 package com.xtn.figo;
 
 import com.xtn.figo.entities.*;
-import com.xtn.figo.repositories.ConsultationRepository;
-import com.xtn.figo.repositories.MedecinRepository;
-import com.xtn.figo.repositories.RendevousRepository;
-import com.xtn.figo.repositories.PatientRepository;
+import com.xtn.figo.service.IHospitalService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -16,57 +13,53 @@ import java.util.stream.Stream;
 @SpringBootApplication
 public class FigoApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(FigoApplication.class, args);
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(FigoApplication.class, args);
+    }
 
     @Bean
-    CommandLineRunner start( RendevousRepository rendevousRepository,
-                            MedecinRepository medecinRepository, ConsultationRepository consultationRepository,
-                            PatientRepository patientRepository) {
+    CommandLineRunner start(IHospitalService hospitalService) {
         return args -> {
-            Stream.of("MT", "Rs", "F1")
-                    .forEach(name -> {
-                        Patient patient = new Patient();
-                        patient.setPrenom(name);
-                        patient.setMalade(false);
-                        patient.setDateOfBirth(new Date());
-                        patientRepository.save(patient);
-                    });
 
-            Stream.of("Aymane", "hassan", "hanane")
-                    .forEach(name -> {
-                        Medecin medecin = new Medecin();
-                        medecin.setName(name);
-                        medecin.setEmail(name+"@gmail.com");
-                        medecin.setSpecialite(Math.random()>0.52?"cardio" : "generaliste");
-                        medecinRepository.save(medecin);
-                    });
+            // Patients
+            Stream.of("MT", "Rs", "F1").forEach(name -> {
+                Patient patient = new Patient();
+                patient.setPrenom(name);
+                patient.setMalade(false);
+                patient.setDateOfBirth(new Date());
+                hospitalService.savePatient(patient);
+            });
 
+            // Medecins
+            Stream.of("Aymane", "Hassan", "Hanane").forEach(name -> {
+                Medecin medecin = new Medecin();
+                medecin.setName(name);
+                medecin.setEmail(name + "@gmail.com");
+                medecin.setSpecialite(Math.random() > 0.5 ? "Cardio" : "Generaliste");
+                hospitalService.saveMedecin(medecin);
+            });
 
-            Patient patient = patientRepository.findById(1L).orElse(null);
-            Patient patient2 = patientRepository.findByPrenom("MT");
+            // Get data
+            Patient patient = hospitalService.getPatient(1L);
+            Medecin medecin = hospitalService.findMedecinById(1L);
 
-            Medecin medecin = medecinRepository.findById(1L).orElse(null);
+            // RDV
+            Rendezvous rdv = new Rendezvous();
+            rdv.setPatient(patient);
+            rdv.setMedecin(medecin);
+            rdv.setConsultationDate(new Date());
+            rdv.setStatus(StatusRDV.PENDING);
+            hospitalService.saveRDV(rdv);
 
+            // Consultation
+            Rendezvous savedRDV = hospitalService.findRDVById(1L);
 
-            Rendezvous rendezvous = new Rendezvous();
-            rendezvous.setMedecin(medecin);
-            rendezvous.setPatient(patient);
-            rendezvous.setConsultationDate(new Date());
-            rendezvous.setStatus(StatusRDV.PENDING);
-            rendevousRepository.save(rendezvous);
+            Consultation consultation = new Consultation();
+            consultation.setRendezvous(savedRDV);
+            consultation.setRapport("Rapport de consultation");
+            consultation.setConsultationDate(savedRDV.getConsultationDate());
 
-
-           Rendezvous rendezvous2 = rendevousRepository.findById(1L).orElse(null);
-
-           Consultation consultation = new Consultation();
-           consultation.setRendezvous(rendezvous2);
-           consultation.setRapport("Rapport de consultation");
-           consultation.setConsultationDate( rendezvous2.getConsultationDate());
-           consultationRepository.save(consultation);
-
-
+            hospitalService.saveConsultation(consultation);
         };
     }
 }
